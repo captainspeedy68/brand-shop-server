@@ -71,6 +71,26 @@ async function run() {
             const result = await productCollection.insertOne(newProduct);
             res.send(result);
         });
+        app.put("/addtocart/:id", async (req, res) => {
+            const id = req.params.id;
+            // console.log(id);
+            const userInfo = req.body;
+            const email = userInfo.email;
+            const existingProduct = await userCollection.findOne({ email, "products": id });
+            if (!existingProduct){
+                const filter = {email: email};
+                const options = {upsert: true};
+                const update = {
+                    $addToSet: { products: id }, 
+                  };
+                const result = await userCollection.updateOne(filter, update, options);
+                res.send(result);
+            }
+            else{
+                res.send({"error": "Product already exists"});
+            }
+        });
+
         app.put("/update/:id", async (req, res) => {
             const id = req.params.id;
             const filter = { _id: new ObjectId(id) };
@@ -100,14 +120,14 @@ async function run() {
         app.put("/users", async (req, res) => {
             const user = req.body;
             // console.log(user);
-            const userId = user.uid;
-            const filter = { uid: userId };
+            const email = user.email;
+            const filter = { email: email };
             const options = { upsert: true };
             const update = { $set: {} }; // Initialize update object
 
             // Build the update object dynamically based on user object properties
             for (const key in user) {
-                if (key !== 'uid') { // Exclude uid from update (optional)
+                if (key !== 'email') { // Exclude uid from update (optional)
                     update.$set[key] = user[key];
                 }
             }
@@ -126,6 +146,16 @@ async function run() {
             const result = await userCollection.updateOne(filter, latest, options);
             res.send(result);
             console.log(user.lastLoginAt);
+        });
+        app.get("/user/:email", async (req, res) => {
+            const email = req.params.email;
+            console.log(email);
+            const query = { email: email};
+            const options = {
+                projection: {products: 1}
+            };
+            const result = await userCollection.findOne(query, options);
+            res.send(result);
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
