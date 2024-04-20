@@ -1,4 +1,4 @@
-const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId, MongoUnexpectedServerResponseError } = require('mongodb');
 const express = require('express');
 const cors = require('cors');
 require("dotenv").config();
@@ -65,11 +65,67 @@ async function run() {
             res.send(result);
         })
 
+        app.post("/addproduct", async (req, res) => {
+            const newProduct = req.body;
+            // console.log(newProduct);
+            const result = await productCollection.insertOne(newProduct);
+            res.send(result);
+        });
+        app.put("/update/:id", async (req, res) => {
+            const id = req.params.id;
+            const filter = { _id: new ObjectId(id) };
+            const options = { upsert: true };
+            const updatedCoffee = req.body;
+            const product = {
+                $set: {
+                    image: updatedCoffee.image,
+                    name: updatedCoffee.name,
+                    brandName: updatedCoffee.brandName,
+                    type: updatedCoffee.type,
+                    price: updatedCoffee.price,
+                    shortDescription: updatedCoffee.shortDescription,
+                    rating: updatedCoffee.rating
+                }
+            }
+            const result = await productCollection.updateOne(filter, product, options);
+            // console.log(result)
+            res.send(result)
+        })
         app.post("/users", async (req, res) => {
             const newUser = req.body;
             // console.log(newUser);
             const result = await userCollection.insertOne(newUser);
             res.send(result);
+        })
+        app.put("/users", async (req, res) => {
+            const user = req.body;
+            // console.log(user);
+            const userId = user.uid;
+            const filter = { uid: userId };
+            const options = { upsert: true };
+            const update = { $set: {} }; // Initialize update object
+
+            // Build the update object dynamically based on user object properties
+            for (const key in user) {
+                if (key !== 'uid') { // Exclude uid from update (optional)
+                    update.$set[key] = user[key];
+                }
+            }
+            const result = await userCollection.updateOne(filter, update, options);
+            res.send(result);
+        })
+        app.put("/user/login", async(req, res) => {
+            const user = req.body;
+            const filter = {email: user.email};
+            const options = {upsert: true};
+            const latest = {
+                $set: {
+                    lastLoginAt: user.lastLoginAt
+                }
+            }
+            const result = await userCollection.updateOne(filter, latest, options);
+            res.send(result);
+            console.log(user.lastLoginAt);
         })
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
